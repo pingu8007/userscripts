@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] CardData
 // @namespace    https://pingu.moe/script/easycard
-// @version      1.0.0
+// @version      1.0.1
 // @description  Inject shared card data into window
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -52,6 +52,18 @@ class Card {
 	toString() {
 		return `${this.name}(${this.vendor}${this.ec[this.ec.length - 1]})`;
 	}
+}
+
+class Visa extends Card {
+	constructor(name, ec, cc, birth) { super(name, ec, cc, "V", birth); }
+}
+
+class MasterCard extends Card {
+	constructor(name, ec, cc, birth) { super(name, ec, cc, "M", birth); }
+}
+
+class JCB extends Card {
+	constructor(name, ec, cc, birth) { super(name, ec, cc, "J", birth); }
 }
 
 const wallet = [];
