@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      0.9.0
+// @version      0.9.1
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
 // @icon         https://www.easycard.com.tw/styles/images/common/easycard.png
 // @match        https://ezweb.easycard.com.tw/Event01/JCBLoginRecordServlet
 // @grant        none
+// @inject-into  page
 // ==/UserScript==
 'use strict';
 
@@ -48,6 +49,16 @@ const use_profile = window.use_profile = profile => {
 	return reset_cards();
 }
 
+const toForm = card => ({
+	"txtEasyCard1": card.ec[0],
+	"txtEasyCard2": card.ec[1],
+	"txtEasyCard3": card.ec[2],
+	"txtEasyCard4": card.ec[3],
+	"txtCreditCard1": card.cc[0],
+	"txtCreditCard2": card.cc[1].substr(0, 2),
+	"txtCreditCard4": card.cc[3],
+});
+
 // will be invoked once recaptcha complete
 const job_dispatcher = window.dispatcher = key => {
 	let card = cardpool.shift(); // remove first
@@ -64,7 +75,7 @@ const job_runner = (key, card) => $.ajax({
 		"method": op.method,
 		"accept": "",
 		"g-recaptcha-response": key,
-	}, card.toForm()),
+	}, toForm(card)),
 	"success": op.success_handler,
 	"error": op.error_handler,
 	"type": "POST",
@@ -117,8 +128,16 @@ function cb_error() {
 	if ((this.retry--) > 0) $.ajax(this);
 }
 
-console.log('ec: initializing...');
-use_profile(new Date().getDate() == 1 ? "reg" : "qry");
+// JCBLoginRecordServlet comes with jq 1.6, .on() unavailable.
+$(window).bind("easycard.ready", function (e, cards) {
+	console.log('ec: initializing...');
+	use_profile(new Date().getDate() == 1 ? "reg" : "qry");
+	window.cards.forEach(card => {
+		let e = document.querySelector("div.step1").appendChild(document.createElement("div"));
+		e.setAttribute("id", "card_" + card.ec[3]);
+	});
+});
+
 let dom;
 
 // configure recaptcha
@@ -136,11 +155,4 @@ dom.setAttribute("align", "center");
 dom.style.margin = "auto";
 dom.style.width = "300px";
 dom.style.minWidth = "300px";
-{
-	let e = dom.appendChild(document.createElement("div"));
-	e.setAttribute("id", "log_area");
-}
-cardpool.forEach(card => {
-	let e = dom.appendChild(document.createElement("div"));
-	e.setAttribute("id", "card_" + card.ec[3]);
-});
+dom.appendChild(document.createElement("div")).setAttribute("id", "log_area");
