@@ -5,14 +5,17 @@
 // @description  Some shortcut to simplify the query steps
 // @author       PinGu
 // @homepage     https://pingu.moe/
-// @icon         https://www.easycard.com.tw/styles/images/common/easycard.png
+// @icon         easycard.png
 // @match        https://ezweb.easycard.com.tw/search/CardSearch.php
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js
 // @grant        none
 // @inject-into  page
 // ==/UserScript==
 'use strict';
 
-// configure: available date-range options
+const $ = jQuery.noConflict(true);
+
+// available date-range options
 const date_opts = [
 	{ t: "近一週", v: "-1w" },
 	{ t: "近二週", v: "-2w" },
@@ -34,7 +37,7 @@ $("<button>").attr("type", "button").text("全部顯示")
 $("div[id^=pg] tr.r1").appendTo("#pgh tbody");
 
 // custom card selector
-$(window).on("easycard.ready", function (e, cards) {
+$(window).on("easycard_ready", function (e) {
 	let elem = $("<select>").attr("name_picker", "card_id").on("change", e => {
 		if (typeof (e.target.selectedIndex) !== "number" || e.target.selectedIndex < 0) {
 			if ($("input[name=card_id]").val() == "")
@@ -47,7 +50,7 @@ $(window).on("easycard.ready", function (e, cards) {
 			$("input[name=birthday").val($(e.target).find("option:selected").data("birth"));
 		}
 	});
-	cards.forEach(card => {
+	e.detail.forEach(card => {
 		$("<option>").text(card.toString()).val(card.id).data("birth", card.birth).appendTo(elem);
 	});
 	elem.val($("input[name=card_id]").val()).insertAfter("input[name=card_id]").trigger("change");

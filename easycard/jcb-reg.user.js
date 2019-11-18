@@ -5,12 +5,15 @@
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
-// @icon         https://www.easycard.com.tw/styles/images/common/easycard.png
+// @icon         easycard.png
 // @match        https://ezweb.easycard.com.tw/Event01/JCBLoginRecordServlet
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js
 // @grant        none
 // @inject-into  page
 // ==/UserScript==
 'use strict';
+
+const $ = jQuery.noConflict(true);
 
 let cardpool;
 let op;
@@ -49,6 +52,10 @@ const use_profile = window.use_profile = profile => {
 	return reset_cards();
 }
 
+/**
+ * 
+ * @param {Card} card 
+ */
 const toForm = card => ({
 	"txtEasyCard1": card.ec[0],
 	"txtEasyCard2": card.ec[1],
@@ -128,11 +135,10 @@ function cb_error() {
 	if ((this.retry--) > 0) $.ajax(this);
 }
 
-// JCBLoginRecordServlet comes with jq 1.6, .on() unavailable.
-$(window).bind("easycard.ready", function (e, cards) {
+$(window).on("easycard_ready", function (e) {
 	console.log('ec: initializing...');
 	use_profile(new Date().getDate() == 1 ? "reg" : "qry");
-	window.cards.forEach(card => {
+	e.detail.forEach(card => {
 		let e = document.querySelector("div.step1").appendChild(document.createElement("div"));
 		e.setAttribute("id", "card_" + card.ec[3]);
 	});
