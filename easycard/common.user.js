@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         [EasyCard] CardData
 // @namespace    https://pingu.moe/script/easycard
-// @version      1.1.0
-// @description  Shared components
+// @version      1.2.0
+// @description  PUT ON THE END. Read cards and dispatch event.
 // @author       PinGu
 // @homepage     https://pingu.moe/
-// @icon         https://www.easycard.com.tw/styles/images/common/easycard.png
+// @icon         easycard.png
 // @match        https://ezweb.easycard.com.tw/*
-// @grant        none
+// @grant        GM_getValue
 // @inject-into  page
 // ==/UserScript==
 'use strict';
@@ -50,7 +50,6 @@ class Card {
 		this.vendor = vendor;
 		this.ec = Object.freeze(ec);
 		this.cc = Object.freeze(cc);
-		Object.freeze(this);
 	}
 
 	/**
@@ -74,7 +73,7 @@ class Card {
 		if (Array.isArray(raw)) {
 			let wallet = raw.map(c => new Card(c[0], c[1], c[2], c[3], c[4]));
 			window.cards = wallet;
-			$(window).trigger("easycard.ready", [wallet]);
+			window.dispatchEvent(new CustomEvent("easycard_ready", { detail: wallet }));
 			return wallet;
 		} else {
 			return [];
@@ -82,5 +81,17 @@ class Card {
 	}
 }
 
-window.Card = Card;
-window.cards = [];
+const examples = [
+	[
+		"(例)台新黑狗", // display name
+		["1203", "0000", "0123", "4567"], // easy card number
+		["4147", "63--", "----", "8888"], // credit card number
+		"V", // vendor: (V)isa / (M)asterCard / (J)CB
+		"1031" // birth: MMDD
+	]
+];
+
+const wallet = GM_getValue("user_cards", examples);
+
+window.eval(`${Card.toString()};window.Card=Card;window.cards=[]`);
+window.eval(`Card.install(${JSON.stringify(wallet)})`);

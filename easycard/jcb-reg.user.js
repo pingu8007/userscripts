@@ -1,54 +1,84 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      0.9.1
+// @version      1.0.0
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
-// @icon         https://www.easycard.com.tw/styles/images/common/easycard.png
+// @icon         easycard.png
 // @match        https://ezweb.easycard.com.tw/Event01/JCBLoginRecordServlet
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js
 // @grant        none
 // @inject-into  page
 // ==/UserScript==
 'use strict';
 
+const $ = jQuery.noConflict(true);
+
+/**
+ * @type {Card[]}
+ */
 let cardpool;
-let op;
 
-const captcha_matcher = /驗證碼錯誤/;
-const keyword_matcher = /\<div.*(開放|成功|已經|已滿).*\<\/div\>/;
+/**
+ * @type {Function}
+ */
+let operation;
 
+/**
+ * Clear log and reload card pool
+ * @returns {Card[]} Refreshed card pool
+ */
 const reset_cards = window.reset_cards = () => {
 	cardpool = window.cards.filter(i => "J" === i.vendor);
-	console.log("ec: card_pool is reseted");
+	$("#log_area").empty();
+	console.log(`ec: card pool reloaded, ${cardpool.length} cards in pool`);
 	return cardpool;
 }
 
+/**
+ * Refresh card pool and hook corresponding worker onto callback
+ * @returns {Card[]} Refreshed card pool
+ */
 const use_profile = window.use_profile = profile => {
 	switch (profile.toLowerCase()) {
+		case "r":
 		case "reg":
-			op = {
-				"url": "/Event01/JCBLoginServlet",
-				"method": "loginAccept",
-				"success_handler": cb_reg_done,
-				"error_handler": cb_error,
-			};
+		case "register":
+			operation = do_reg;
 			console.log("ec: use registering profile");
 			break;
+		case "q":
 		case "qry":
+		case "query":
 		default:
-			op = {
-				"url": "/Event01/JCBLoginRecordServlet",
-				"method": "queryLoginDate",
-				"success_handler": cb_qry_done,
-				"error_handler": cb_error,
-			};
+			operation = do_qry;
 			console.log("ec: use querying profile");
 			break;
 	}
 	return reset_cards();
 }
 
+/**
+ * Get next available Card from card pool
+ * @param {boolean} Also include Card that already finished
+ * @returns {Card} Next available Card, or undefined if nothing left.
+ */
+const getNext = all => {
+	let times = 0;
+	while (times < cardpool.length) {
+		const card = cardpool.shift();
+		cardpool.push(card);
+		if (!card.done || all) return card;
+		times++;
+	}
+	return undefined;
+}
+
+/**
+ * Convert Card to register form
+ * @param {Card} card 
+ */
 const toForm = card => ({
 	"txtEasyCard1": card.ec[0],
 	"txtEasyCard2": card.ec[1],
@@ -59,100 +89,110 @@ const toForm = card => ({
 	"txtCreditCard4": card.cc[3],
 });
 
-// will be invoked once recaptcha complete
+/**
+ * Callback function on reCAPTCHA completed
+ * @param {string} key 
+ */
 const job_dispatcher = window.dispatcher = key => {
-	let card = cardpool.shift(); // remove first
-	if (card !== undefined) {
-		job_runner(key, card);
-		cardpool.push(card); // append to end
-	}
 	grecaptcha.reset();
+	operation(key);
 };
 
-const job_runner = (key, card) => $.ajax({
-	"url": op.url,
-	"data": Object.assign({
-		"method": op.method,
-		"accept": "",
-		"g-recaptcha-response": key,
-	}, toForm(card)),
-	"success": op.success_handler,
-	"error": op.error_handler,
-	"type": "POST",
-	"timeout": 20000,
-	"cache": false,
-	"retry": 6,
-	"card": card,
-});
+/**
+ * Main procedure to register cards
+ * @param {string} key 
+ */
+const do_reg = async key => {
+	const card = getNext(false);
+	if (!card) return;
 
-function cb_reg_done(body) {
-	// captcha failed or expired
-	if (captcha_matcher.test(body))
-		return; // drop this session
+	const payload = {
+		"url": "/Event01/JCBLoginServlet",
+		"data": Object.assign({
+			"method": "loginAccept",
+			"accept": "",
+			"g-recaptcha-response": key,
+		}, toForm(card)),
+		"type": "POST",
+		"timeout": 20000,
+		"cache": false
+	};
 
-	let found = keyword_matcher.exec(body);
-	if (found !== null && found.length > 1) {
-		let msg;
+	let coin = 6;
+	while (coin-- > 0) {
+		let body;
+		try { body = await $.ajax(payload); } catch (error) { continue; }
+		// Check if reCAPTCHA test successed
+		if (/驗證碼錯誤/.test(body)) return;
+		const found = /\<div.*(開放|成功|已經|已滿).*\<\/div\>/.exec(body);
+		if (!found) return;
+		let msg = card.toString() + "-";
 		switch (found[1]) {
-			case '開放': msg = '本月份尚未開始註冊';
-				break;
-			case '成功': msg = '註冊成功';
-				break;
-			case '已經': msg = '註冊成功(重複)';
-				break;
-			case '已滿': msg = '註冊失敗(額滿)';
-				break;
-			default: msg = 'ERROR';
-				break;
+			case '開放': msg += '尚未開放'; break;
+			case '成功': msg += '註冊成功'; break;
+			case '已經': msg += '註冊重複成功'; card.done = true; break;
+			case '已滿': msg += '註冊額滿失敗'; card.done = true; break;
+			default: msg += 'ERROR'; break;
 		}
-		console.log(`ec: ${this.card.toString()}${msg}`);
-		cardpool = cardpool.filter(card => card.id != this.card.id);
+		console.log("ec: " + msg);
+		$("#log_area").prepend($("<p>").text(msg));
+		return;
 	}
 }
 
-function cb_qry_done(body) {
-	let ctx = $(body);
-	let card = this.card;
-	let log_area = $("#log_area").empty();
-	$("<p>").text("Registering history of " + card.name).addClass("log_" + card.ec[3]).appendTo(log_area);
-	ctx.find("table#search_tb tr:has(td)").each((idx, elem) => {
-		let e = $(elem).find("td");
-		let msg = `${e[0].innerText.trim()} => ${e[1].innerText.trim()}`;
-		$("<p>").text(msg).addClass("log_" + card.ec[3]).appendTo(log_area);
-		console.log(`ec: ${this.card.toString()} ${msg}`);
-	});
-	cardpool = cardpool.filter(card => card.id != this.card.id);
+/**
+ * Main procedure to query register-records
+ * @param {string} key 
+ */
+const do_qry = async key => {
+	const card = getNext(true);
+	if (!card) return;
+
+	const payload = {
+		"url": "/Event01/JCBLoginRecordServlet",
+		"data": Object.assign({
+			"method": "queryLoginDate",
+			"accept": "",
+			"g-recaptcha-response": key,
+		}, toForm(card)),
+		"type": "POST",
+		"timeout": 20000,
+		"cache": false
+	};
+
+	let coin = 6;
+	while (coin-- > 0) {
+		let ctx;
+		try { ctx = $(await $.ajax(payload)); } catch (error) { continue; }
+		const log_area = $("#log_area").empty();
+		$("<p>").text("Registering history of " + card.toString()).appendTo(log_area);
+		ctx.find("table#search_tb tr:has(td)").each((idx, elem) => {
+			let e = $(elem).find("td");
+			let msg = `${e.eq(0).text().trim()} => ${e.eq(1).text().trim()}`;
+			console.log(`ec: ${card.toString()} ${msg}`);
+			$("<p>").text(msg).appendTo(log_area);
+		});
+		return;
+	}
 }
-
-function cb_error() {
-	if ((this.retry--) > 0) $.ajax(this);
-}
-
-// JCBLoginRecordServlet comes with jq 1.6, .on() unavailable.
-$(window).bind("easycard.ready", function (e, cards) {
-	console.log('ec: initializing...');
-	use_profile(new Date().getDate() == 1 ? "reg" : "qry");
-	window.cards.forEach(card => {
-		let e = document.querySelector("div.step1").appendChild(document.createElement("div"));
-		e.setAttribute("id", "card_" + card.ec[3]);
-	});
-});
-
-let dom;
 
 // configure recaptcha
-dom = document.querySelector("div.step1").appendChild(document.querySelector(".g-recaptcha"));
-dom.setAttribute("data-theme", "dark");
-dom.setAttribute("data-callback", "dispatcher");
+$(".g-recaptcha").attr({
+	"data-theme": "dark",
+	"data-callback": "dispatcher"
+}).appendTo("div.step1");
 
 // remove unnecessary elements
-dom = document.querySelectorAll("div.nav, div.step2, #form1");
-dom.forEach(e => e.remove());
+$("div.nav, div.step2, #form1").remove();
 
 // add display window
-dom = document.querySelector("div.step1");
-dom.setAttribute("align", "center");
-dom.style.margin = "auto";
-dom.style.width = "300px";
-dom.style.minWidth = "300px";
-dom.appendChild(document.createElement("div")).setAttribute("id", "log_area");
+$("div.step1").attr("align", "center").css({
+	"margin": "auto",
+	"width": "300px",
+	"min-width": "300px"
+}).append($("<div>").attr("id", "log_area"));
+
+$(window).on("easycard_ready", function (e) {
+	console.log('ec: initializing...');
+	use_profile(new Date().getDate() == 1 ? "reg" : "qry");
+});
