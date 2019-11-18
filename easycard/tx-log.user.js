@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] Transaction querying utils
 // @namespace    https://pingu.moe/script/easycard
-// @version      1.1.0
+// @version      1.2.0
 // @description  Some shortcut to simplify the query steps
 // @author       PinGu
 // @homepage     https://pingu.moe/

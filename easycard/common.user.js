@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] CardData
 // @namespace    https://pingu.moe/script/easycard
-// @version      1.1.0
+// @version      1.2.0
 // @description  PUT ON THE END. Read cards and dispatch event.
 // @author       PinGu
 // @homepage     https://pingu.moe/
