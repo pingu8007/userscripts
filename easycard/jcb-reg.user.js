@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.0.0
+// @version      1.0.1
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -31,6 +31,7 @@ let operation;
  */
 const reset_cards = window.reset_cards = () => {
 	cardpool = window.cards.filter(i => "J" === i.vendor);
+	cardpool.forEach(c => delete c.done);
 	$("#log_area").empty();
 	console.log(`ec: card pool reloaded, ${cardpool.length} cards in pool`);
 	return cardpool;
