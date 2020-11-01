@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] CardData
 // @namespace    https://pingu.moe/script/easycard
-// @version      1.2.0
+// @version      1.2.1
 // @description  PUT ON THE END. Read cards and dispatch event.
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -60,8 +60,15 @@ class Card {
 	/**
 	 * @returns {string}
 	 */
+	toCardShort() {
+		return `${this.vendor}${this.ec[this.ec.length - 1]}`;
+	}
+
+	/**
+	 * @returns {string}
+	 */
 	toString() {
-		return `${this.name}(${this.vendor}${this.ec[this.ec.length - 1]})`;
+		return `${this.name}(${this.toCardShort()})`;
 	}
 
 	/**

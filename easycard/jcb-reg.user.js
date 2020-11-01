@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.0.1
+// @version      1.0.2
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -15,10 +15,7 @@
 
 const $ = jQuery.noConflict(true);
 
-/**
- * @type {Card[]}
- */
-let cardpool;
+let cardmap = {};
 
 /**
  * @type {Function}
@@ -30,8 +27,17 @@ let operation;
  * @returns {Card[]} Refreshed card pool
  */
 const reset_cards = window.reset_cards = () => {
-	cardpool = window.cards.filter(i => "J" === i.vendor);
-	cardpool.forEach(c => delete c.done);
+	$("#card_selector").empty();
+	cardmap = {};
+
+	let cardpool = window.cards.filter(i => "J" === i.vendor).map(c => {
+		delete c.done;
+		cardmap[c.toCardShort()] = c;
+		$("#card_selector").append($("<option>").attr("value", c.toCardShort()).text(c.toString()));
+		return c;
+	});
+	$("#card_selector").prop("selectedIndex", 0);
+
 	$("#log_area").empty();
 	console.log(`ec: card pool reloaded, ${cardpool.length} cards in pool`);
 	return cardpool;
@@ -61,19 +67,27 @@ const use_profile = window.use_profile = profile => {
 }
 
 /**
- * Get next available Card from card pool
- * @param {boolean} Also include Card that already finished
- * @returns {Card} Next available Card, or undefined if nothing left.
+ * Get selected card from cardpool, and set \<select\> to next possible Card.
+ * @param {boolean} all Also include Card that already finished
+ * @returns {Card} Selected card, or undefined if nothing selected.
  */
 const getNext = all => {
+	const selector = $("#card_selector");
+	const last = selector.val();
+	const opts = selector.children("option");
+	let cur = selector.prop("selectedIndex");
+	cur = cur < 0 ? 0 : cur;
+
 	let times = 0;
-	while (times < cardpool.length) {
-		const card = cardpool.shift();
-		cardpool.push(card);
-		if (!card.done || all) return card;
+	while (times < opts.length) {
+		cur = cur < opts.length - 1 ? cur + 1 : 0;
+		if (!cardmap[opts.eq(cur).val()].done || all) {
+			selector.prop("selectedIndex", cur);
+			break;
+		}
 		times++;
 	}
-	return undefined;
+	return last == null ? undefined : cardmap[last];
 }
 
 /**
@@ -191,7 +205,10 @@ $("div.step1").attr("align", "center").css({
 	"margin": "auto",
 	"width": "300px",
 	"min-width": "300px"
-}).append($("<div>").attr("id", "log_area"));
+}).append(
+	$("<p>").append($("<select>").attr("id", "card_selector")),
+	$("<div>").attr("id", "log_area"),
+);
 
 $(window).on("easycard_ready", function (e) {
 	console.log('ec: initializing...');
