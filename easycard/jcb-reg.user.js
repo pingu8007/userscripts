@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.0.2
+// @version      1.0.3
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -27,43 +27,21 @@ let operation;
  * @returns {Card[]} Refreshed card pool
  */
 const reset_cards = window.reset_cards = () => {
-	$("#card_selector").empty();
+	console.log('ec: initializing...');
+	opt_card.empty();
 	cardmap = {};
 
 	let cardpool = window.cards.filter(i => "J" === i.vendor).map(c => {
 		delete c.done;
 		cardmap[c.toCardShort()] = c;
-		$("#card_selector").append($("<option>").attr("value", c.toCardShort()).text(c.toString()));
+		opt_card.append($("<option>").attr("value", c.toCardShort()).text(c.toString()));
 		return c;
 	});
-	$("#card_selector").prop("selectedIndex", 0);
+	opt_card.prop("selectedIndex", 0);
 
-	$("#log_area").empty();
+	log_area.empty();
 	console.log(`ec: card pool reloaded, ${cardpool.length} cards in pool`);
 	return cardpool;
-}
-
-/**
- * Refresh card pool and hook corresponding worker onto callback
- * @returns {Card[]} Refreshed card pool
- */
-const use_profile = window.use_profile = profile => {
-	switch (profile.toLowerCase()) {
-		case "r":
-		case "reg":
-		case "register":
-			operation = do_reg;
-			console.log("ec: use registering profile");
-			break;
-		case "q":
-		case "qry":
-		case "query":
-		default:
-			operation = do_qry;
-			console.log("ec: use querying profile");
-			break;
-	}
-	return reset_cards();
 }
 
 /**
@@ -72,17 +50,16 @@ const use_profile = window.use_profile = profile => {
  * @returns {Card} Selected card, or undefined if nothing selected.
  */
 const getNext = all => {
-	const selector = $("#card_selector");
-	const last = selector.val();
-	const opts = selector.children("option");
-	let cur = selector.prop("selectedIndex");
+	const last = opt_card.val();
+	const opts = opt_card.children("option");
+	let cur = opt_card.prop("selectedIndex");
 	cur = cur < 0 ? 0 : cur;
 
 	let times = 0;
 	while (times < opts.length) {
 		cur = cur < opts.length - 1 ? cur + 1 : 0;
 		if (!cardmap[opts.eq(cur).val()].done || all) {
-			selector.prop("selectedIndex", cur);
+			opt_card.prop("selectedIndex", cur);
 			break;
 		}
 		times++;
@@ -150,7 +127,7 @@ const do_reg = async key => {
 			default: msg += 'ERROR'; break;
 		}
 		console.log("ec: " + msg);
-		$("#log_area").prepend($("<p>").text(msg));
+		log_area.prepend($("<p>").text(msg));
 		return;
 	}
 }
@@ -179,7 +156,7 @@ const do_qry = async key => {
 	while (coin-- > 0) {
 		let ctx;
 		try { ctx = $(await $.ajax(payload)); } catch (error) { continue; }
-		const log_area = $("#log_area").empty();
+		log_area.empty()
 		$("<p>").text("Registering history of " + card.toString()).appendTo(log_area);
 		ctx.find("table#search_tb tr:has(td)").each((idx, elem) => {
 			let e = $(elem).find("td");
@@ -191,26 +168,61 @@ const do_qry = async key => {
 	}
 }
 
-// configure recaptcha
+const panel = $("div.step1");
+
+// setup recaptcha
 $(".g-recaptcha").attr({
 	"data-theme": "dark",
 	"data-callback": "dispatcher"
-}).appendTo("div.step1");
+}).appendTo(panel);
 
 // remove unnecessary elements
 $("div.nav, div.step2, #form1").remove();
 
-// add display window
-$("div.step1").attr("align", "center").css({
+// adjust view
+$(panel).attr("align", "center").css({
 	"margin": "auto",
 	"width": "300px",
 	"min-width": "300px"
-}).append(
-	$("<p>").append($("<select>").attr("id", "card_selector")),
-	$("<div>").attr("id", "log_area"),
-);
+});
 
-$(window).on("easycard_ready", function (e) {
-	console.log('ec: initializing...');
-	use_profile(new Date().getDate() == 1 ? "reg" : "qry");
+// add log view
+const log_area = $("<div>").appendTo(panel);
+
+// add card selector
+const opt_card = $("<select>").prependTo(panel);
+
+// add clear button
+$("<button>")
+	.text("Clear")
+	.on("click", function () {
+		log_area.empty();
+	})
+	.prependTo(panel);
+
+// add reset button
+$("<button>")
+	.text("Reset")
+	.attr("id", "btn_reset")
+	.on("click", reset_cards)
+	.prependTo(panel);
+
+// add operation switch
+$("<input>")
+	.attr("type", "checkbox")
+	.on("change", function () {
+		if ($(this).prop("checked")) {
+			operation = do_qry;
+			console.log("ec: use querying profile");
+		} else {
+			operation = do_reg;
+			console.log("ec: use registering profile");
+		}
+	})
+	.trigger("change")
+	.prependTo($("<label>").text("Query").prependTo(panel));
+
+//  listen on broadcast from data initializer
+$(window).on("easycard_ready", function () {
+	$("#btn_reset").click();
 });
