@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.0.3
+// @version      1.0.4
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -210,6 +210,7 @@ $("<button>")
 // add operation switch
 $("<input>")
 	.attr("type", "checkbox")
+	.prop("checked", new Date().getDate() != 1)
 	.on("change", function () {
 		if ($(this).prop("checked")) {
 			operation = do_qry;
