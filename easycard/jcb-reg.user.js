@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.0.4
+// @version      1.0.5
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -116,13 +116,13 @@ const do_reg = async key => {
 		try { body = await $.ajax(payload); } catch (error) { continue; }
 		// Check if reCAPTCHA test successed
 		if (/驗證碼錯誤/.test(body)) return;
-		const found = /\<div.*(開放|成功|已經|已滿).*\<\/div\>/.exec(body);
+		const found = /\<div.*(開放|成功|已登錄|已滿).*\<\/div\>/.exec(body);
 		if (!found) return;
 		let msg = card.toString() + "-";
 		switch (found[1]) {
 			case '開放': msg += '尚未開放'; break;
 			case '成功': msg += '註冊成功'; break;
-			case '已經': msg += '註冊重複成功'; card.done = true; break;
+			case '已登錄': msg += '註冊重複成功'; card.done = true; break;
 			case '已滿': msg += '註冊額滿失敗'; card.done = true; break;
 			default: msg += 'ERROR'; break;
 		}
