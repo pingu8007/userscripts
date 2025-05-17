@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.1.1
+// @version      1.1.2
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -201,11 +201,18 @@ const doQry = async key => {
 const panel = $("div.step1");
 
 // setup recaptcha
-grecaptcha.render($("<div>").attr({
+const captchaWidget = $("<div>").attr({
 	"data-sitekey": $(".g-recaptcha").remove().attr("data-sitekey"),
 	"data-theme": "dark",
 	"data-callback": "dispatcher"
-}).appendTo(panel).get(0));
+}).appendTo(panel);
+$(document).ready(function () {
+	try {
+		grecaptcha.render(captchaWidget.get(0));
+	} catch (err) {
+		setTimeout(() => grecaptcha.render(captchaWidget.get(0)), 300)
+	}
+});
 
 // remove unnecessary elements
 $("div.nav, div.step2, #form1").remove();
