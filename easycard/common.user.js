@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] CardData
 // @namespace    https://pingu.moe/script/easycard
-// @version      1.2.1
+// @version      1.3
 // @description  PUT ON THE END. Read cards and dispatch event.
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -14,61 +14,65 @@
 
 class Card {
 	/**
-	 * @param {string} name
-	 * @param {string[]} ec
-	 * @param {string[]} cc
-	 * @param {string} vendor
-	 * @param {string} birth
+	 * @param {any} raw
 	 */
-	constructor(name, ec, cc, vendor, birth) {
-		if (typeof (name) !== "string" || name.length == 0)
-			throw new Error("name incorrect");
+	constructor(raw) {
 
-		if (typeof (vendor) !== "string")
-			throw new Error("vendor incorrect");
-		else
-			switch (vendor) {
-				case "V":
-				case "M":
-				case "J":
-					break;
-				default:
-					throw new Error("unknown vendor");
-			}
+		if (typeof (raw["_vendor"]) !== "string")
+			throw new Error("incorrect card vendor");
+		else switch (raw["_vendor"].trim()) {
+			case "":
+			case "Visa":
+			case "MasterCard":
+			case "JCB":
+				this.vendor = raw["_vendor"].trim();
+				break;
+			default:
+				throw new Error("invalid card vendor");
+		}
 
-		if (typeof (birth) !== "string" || birth.length !== 4)
-			throw new Error("birth incorrect");
+		if (typeof (raw["_birth"]) == "undefined")
+			this.birth = ""; // optional
+		else if (typeof (raw["_birth"]) !== "string" || raw["_birth"].length !== 4)
+			throw new Error("incorrect card holder birth");
+		else this.birth = raw["_birth"];
 
-		if (!Array.isArray(ec) || ec.length !== 4)
-			throw new Error("easy card format incorrect");
+		if (typeof (raw["_ecid"]) !== "string" || raw["_ecid"].length !== 16)
+			throw new Error("incorrect easycard id");
+		else this.ecid = raw["_ecid"];
 
-		if (!Array.isArray(cc) || cc.length !== 4)
-			throw new Error("credit card format incorrect");
+		if (typeof (raw["_prefix"]) !== "string" || raw["_prefix"].length !== 6)
+			throw new Error("incorrect creditcard prefix");
+		else this.prefix = raw["_prefix"];
 
-		this.name = name;
-		this.birth = birth;
-		this.vendor = vendor;
-		this.ec = Object.freeze(ec);
-		this.cc = Object.freeze(cc);
+		if (typeof (raw["_surfix"]) !== "string" || raw["_surfix"].length !== 4)
+			throw new Error("incorrect creditcard surfix");
+		else this.surfix = raw["_surfix"];
+
+		if (typeof (raw["_name"]) == "undefined")
+			this.name = `${this.vendor} ${this.surfix.padStart(16, this.prefix.padEnd(16, "x"))}`;
+		else if (typeof (raw["_name"]) !== "string" || raw["_name"].length == 0)
+			throw new Error("card name incorrect");
+		else this.name = raw["_name"];
 	}
 
 	/**
 	 * @returns {string}
 	 */
-	get id() { return this.ec.join(""); }
+	get id() { return this.ecid; }
 
 	/**
 	 * @returns {string}
 	 */
 	toCardShort() {
-		return `${this.vendor}${this.ec[this.ec.length - 1]}`;
+		return `${this.vendor}${this.surfix}`;
 	}
 
 	/**
 	 * @returns {string}
 	 */
 	toString() {
-		return `${this.name}(${this.toCardShort()})`;
+		return `${this.name} (${this.surfix})`;
 	}
 
 	/**
@@ -78,7 +82,7 @@ class Card {
 	 */
 	static install(raw) {
 		if (Array.isArray(raw)) {
-			let wallet = raw.map(c => new Card(c[0], c[1], c[2], c[3], c[4]));
+			let wallet = raw.map(c => new Card(c));
 			window.cards = wallet;
 			window.dispatchEvent(new CustomEvent("easycard_ready", { detail: wallet }));
 			return wallet;
@@ -89,13 +93,14 @@ class Card {
 }
 
 const examples = [
-	[
-		"(例)台新黑狗", // display name
-		["1203", "0000", "0123", "4567"], // easy card number
-		["4147", "63--", "----", "8888"], // credit card number
-		"V", // vendor: (V)isa / (M)asterCard / (J)CB
-		"1031" // birth: MMDD
-	]
+	{
+		"_name": "永豐DAWHO", // Optional
+		"_vendor": "Visa", // Visa MasterCard JCB
+		"_prefix": "469656",
+		"_surfix": "0000",
+		"_ecid": "1234567812345678",
+		"_birth": "0401" // MMDD
+	}
 ];
 
 const wallet = GM_getValue("user_cards", examples);
