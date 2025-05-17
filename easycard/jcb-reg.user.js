@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.1
+// @version      1.1.1
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -139,7 +139,7 @@ const doReg = async key => {
 				logEntry.text(`${card.toString()} 登錄重複`);
 				card.done = true;
 				break;
-			case '已滿':
+			case '已滿': // 很抱歉，本月份登錄名額已滿
 				logEntry.text(`${card.toString()} 已額滿`);
 				card.done = true;
 				break;
@@ -201,10 +201,11 @@ const doQry = async key => {
 const panel = $("div.step1");
 
 // setup recaptcha
-$(".g-recaptcha").attr({
+grecaptcha.render($("<div>").attr({
+	"data-sitekey": $(".g-recaptcha").remove().attr("data-sitekey"),
 	"data-theme": "dark",
 	"data-callback": "dispatcher"
-}).appendTo(panel);
+}).appendTo(panel).get(0));
 
 // remove unnecessary elements
 $("div.nav, div.step2, #form1").remove();
