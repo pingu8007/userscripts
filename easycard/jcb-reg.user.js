@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [EasyCard] JCB campaign helper
 // @namespace    https://pingu.moe/
-// @version      1.1.2
+// @version      1.1.3
 // @description  Help to half-automatic the register process
 // @author       PinGu
 // @homepage     https://pingu.moe/
@@ -123,7 +123,7 @@ const doReg = async key => {
 			return;
 		}
 		// Check register result
-		const found = /\<div.*(開放|成功|已登錄|已滿|上限).*\<\/div\>/.exec(body);
+		const found = /\<div.*(開放|成功|已登錄|已滿|已額滿|上限).*\<\/div\>/.exec(body);
 		if (!found) {
 			logEntry.text(`${card.toString()} failed`);
 			return;
@@ -140,6 +140,7 @@ const doReg = async key => {
 				card.done = true;
 				break;
 			case '已滿': // 很抱歉，本月份登錄名額已滿
+			case '已額滿': // 很抱歉，本次登錄期間已額滿
 				logEntry.text(`${card.toString()} 已額滿`);
 				card.done = true;
 				break;
